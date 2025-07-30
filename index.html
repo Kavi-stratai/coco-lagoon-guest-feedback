@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Guest Category Ratings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #00bcd4;
+      --box: #00acc1;
+      --text: white;
+      --highlight: #ffeb3b;
+    }
+    body.dark {
+      --bg: #121212;
+      --box: #1f1f1f;
+      --text: #e0e0e0;
+      --highlight: #ffd700;
+    }
+    body {
+      background: var(--bg);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: var(--box);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+    .winner-banner {
+      background: var(--highlight);
+      color: #222;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 1.2em;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .rating-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .rating-table th, .rating-table td {
+      padding: 12px;
+      text-align: center;
+    }
+    .rating-table th {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    .rating-table tr:nth-child(even) {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    .timestamp {
+      margin-top: 20px;
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+    .toggle-mode {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--highlight);
+      color: black;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <button class="toggle-mode" onclick="toggleDarkMode()">🌙 Dark Mode</button>
+  <div class="container">
+    <div id="winner" class="winner-banner">🏆 Winner of the Month</div>
+    <h1 id="heading">🌟 Guest Category Ratings</h1>
+    <table class="rating-table" id="rating-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Average (%)</th>
+          <th>Rewards</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="timestamp" id="timestamp">📅 Last updated: ...</div>
+  </div>
+
+  <script>
+    const API = "https://script.google.com/macros/s/AKfycbz2hag1Pnr3d6-LC1Fx2rXqVFlEMUytE7Szbe2rJvR96HnYDK-r-_fdQWjcdH5IMSZ1/exec";
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    function getMedals(sorted) {
+      const medals = {};
+      if (sorted[0]) medals[sorted[0][0]] = "🥇🥇🥇";
+      if (sorted[1]) medals[sorted[1][0]] = "🥈🥈";
+      if (sorted[2]) medals[sorted[2][0]] = "🥉";
+      sorted.slice(3).forEach(([key], idx) => {
+        medals[key] = ["💪", "🔥", "🚀"][idx % 3];
+      });
+      return medals;
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch(API);
+        const data = await res.json();
+        const allRows = data;
+
+        const latestTimestamp = allRows[0]["TIMESTAMP"];
+        const date = new Date(latestTimestamp);
+        const monthYear = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+        document.getElementById("heading").innerText = `🌟 Guest Category Ratings – ${monthYear}`;
+        document.getElementById("timestamp").innerText = `📅 Last updated: ${new Date(latestTimestamp).toLocaleString()}`;
+
+        // Compute averages
+        const categories = {};
+        allRows.forEach(row => {
+          Object.entries(row).forEach(([key, val]) => {
+            if (key === "TIMESTAMP") return;
+            const num = parseFloat(val.replace('%', '')) || 0;
+            categories[key] = categories[key] || [];
+            categories[key].push(num);
+          });
+        });
+
+        const averages = Object.entries(categories).map(([cat, vals]) => {
+          const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+          return [cat, Math.round(avg)];
+        }).sort((a, b) => b[1] - a[1]);
+
+        const medals = getMedals(averages);
+        document.getElementById("winner").innerText = `🏆 Winner of the Month: ${averages[0][0].toUpperCase()}`;
+
+        const tbody = document.querySelector("#rating-table tbody");
+        tbody.innerHTML = "";
+        averages.forEach(([category, avg]) => {
+          const reward = medals[category] || "";
+          tbody.innerHTML += `
+            <tr>
+              <td>${category}</td>
+              <td>${avg}%</td>
+              <td>${reward}</td>
+            </tr>`;
+        });
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("winner").innerText = "⚠️ Failed to load data";
+      }
+    }
+
+    fetchData();
+    setInterval(fetchData, 15000);
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    });
+  </script>
+</body>
+</html>
